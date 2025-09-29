@@ -1,0 +1,38 @@
+# Dummy Environment Variables for Hey Gen Clone
+# Copy these to your .env file in the frontend directory
+
+# Database
+DATABASE_URL="postgresql://dummy_user:dummy_password@localhost:5432/dummy_database"
+
+# Environment
+NODE_ENV="development"
+
+# Modal API
+MODAL_KEY="dummy_modal_key_12345"
+MODAL_SECRET="dummy_modal_secret_67890"
+
+# AWS Configuration
+AWS_ACCESS_KEY_ID="dummy_aws_access_key_id"
+AWS_SECRET_ACCESS_KEY_ID="dummy_aws_secret_access_key"
+AWS_REGION="us-east-1"
+S3_BUCKET_NAME="dummy-s3-bucket-name"
+
+# API Endpoints
+TEXT_TO_SPEECH_ENDPOINT="https://dummy-tts-api.example.com"
+PHOTO_TO_VIDEO_ENDPOINT="https://dummy-ptv-api.example.com"
+FILE_TO_S3_ENDPOINT="https://dummy-file-s3-api.example.com"
+
+# Polar API
+POLAR_ACCESS_TOKEN="dummy_polar_access_token_12345"
+POLAR_WEBHOOK_SECRET="dummy_polar_webhook_secret_67890"
+
+# FAL API
+FAL_KEY="dummy_fal_key_12345"
+
+# Client-side environment variables
+NEXT_PUBLIC_SMALL_CREDIT_PACK_ID="dummy_small_credit_pack_id"
+NEXT_PUBLIC_MEDIUM_CREDIT_PACK_ID="dummy_medium_credit_pack_id"
+NEXT_PUBLIC_LARGE_CREDIT_PACK_ID="dummy_large_credit_pack_id"
+
+# Skip environment validation (optional)
+# SKIP_ENV_VALIDATION=true

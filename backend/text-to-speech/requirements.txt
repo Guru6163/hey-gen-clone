@@ -1,0 +1,7 @@
+setuptools
+wheel
+modal
+pydantic
+fastapi
+chatterbox-tts
+torchaudio
