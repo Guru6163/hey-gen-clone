@@ -74,6 +74,19 @@ export const photoToVideo = inngest.createFunction(
             voice_S3_key: photoToVideo.voiceS3Key,
           }),
         });
+        
+        if (!ttsResponse.ok) {
+          const errorText = await ttsResponse.text();
+          throw new Error(`Text-to-Speech API failed: ${ttsResponse.status} ${ttsResponse.statusText}. Response: ${errorText}`);
+        }
+        
+        // Check if response is JSON
+        const contentType = ttsResponse.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const responseText = await ttsResponse.text();
+          throw new Error(`Text-to-Speech API returned non-JSON response. Content-Type: ${contentType}. Response: ${responseText}`);
+        }
+        
         const data = (await ttsResponse.json()) as { s3_key: string };
         photoToVideo.drivingAudioS3Key = data.s3_key;
       }
@@ -132,6 +145,18 @@ export const photoToVideo = inngest.createFunction(
             audio_s3_key: photoToVideo.drivingAudioS3Key,
           }),
         });
+
+        if (!videoResponse.ok) {
+          const errorText = await videoResponse.text();
+          throw new Error(`Photo-to-Video API failed: ${videoResponse.status} ${videoResponse.statusText}. Response: ${errorText}`);
+        }
+
+        // Check if response is JSON
+        const contentType = videoResponse.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const responseText = await videoResponse.text();
+          throw new Error(`Photo-to-Video API returned non-JSON response. Content-Type: ${contentType}. Response: ${responseText}`);
+        }
 
         const data = (await videoResponse.json()) as { video_s3_key: string };
         const videoS3Key = data.video_s3_key;
