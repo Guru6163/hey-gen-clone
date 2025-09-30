@@ -77,8 +77,8 @@ def main():
     payload = request.model_dump()
 
     headers = {
-        "Modal-Key": "wk-l1RbNAi2YXIzw4AqvNjHU5",
-        "Modal-Secret": "ws-3UxlJXh3IzFyB6gJLikGya"
+        "Modal-Key": "wk-zwFuWTHhuHDBOfg0SOKk7M",
+        "Modal-Secret": "ws-ZqRDrXwK0xr2BSAUAqwp16"
     }
 
     response = requests.post(endpoint_url, json=payload, headers=headers)
