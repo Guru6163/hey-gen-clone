@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   let payload: FalWebhookPayload;
 
   try {
-    payload = await req.json();
+    payload = await req.json() as FalWebhookPayload;
     console.log("FAL Webhook payload:", JSON.stringify(payload, null, 2));
 
     const { request_id, status } = payload;
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       where: { falJobId: request_id },
     });
 
-    const generation = ptvGeneration || cvaGeneration || vtGeneration;
+    const generation = ptvGeneration ?? cvaGeneration ?? vtGeneration;
     const generationType = ptvGeneration ? "ptv" : cvaGeneration ? "cva" : "vt";
 
     if (!generation) {
@@ -128,7 +128,7 @@ export async function POST(req: Request) {
       await updateGenerationStatus(generationType, generation.id, "failed");
 
       const errorMessage =
-        payload.error || payload.payload?.detail || "Unknown error";
+        payload.error ?? payload.payload?.detail ?? "Unknown error";
 
       return NextResponse.json({
         message: "Webhook processed - generation failed",
