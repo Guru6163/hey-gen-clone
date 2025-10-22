@@ -47,11 +47,13 @@ image = (
         "scipy>=1.11.0",
         "scikit-image>=0.21.0",
         "tqdm>=4.65.0",
-        "huggingface-hub>=0.19.0"
+        "huggingface-hub>=0.19.0",
+        "einops>=0.7.0",
+        "omegaconf>=2.3.0",
+        "tyro>=0.7.0"
     )
     .run_commands(
-        "git clone https://github.com/KwaiVGI/LivePortrait /liveportrait",
-        "cd /liveportrait && pip install -e ."
+        "git clone https://github.com/KwaiVGI/LivePortrait /liveportrait"
     )
     .run_function(download_liveportrait_models, volumes=volumes)
 )
