@@ -37,7 +37,7 @@ export default function RootLayout({
       <body className="flex min-h-svh flex-col items-center justify-center">
         <Providers>
           <Toaster />
-          <SidebarProvider defaultOpen={false}>
+          <SidebarProvider defaultOpen={true}>
             <AppSidebar />
             <SidebarInset className="flex h-screen flex-col">
               <header className="bg-background sticky-top z-10 border-b px-4 py-2">

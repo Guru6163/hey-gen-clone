@@ -10,14 +10,12 @@ import {
   Video,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { PhotoToVideoModal } from "./modals/photo-to-video-modal";
 import { Button } from "./ui/button";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getVideoDuration } from "~/utils/media";
 import { updateCreationName } from "~/actions/creations";
-import { VideoTranslationModal } from "./modals/video-translation-modal";
-import { ChangeVideoAudioModal } from "./modals/change-video-audio-modal";
 import { toast } from "sonner";
+import Link from "next/link";
 
 const features = [
   {
@@ -25,18 +23,21 @@ const features = [
     icon: Image,
     color: "bg-blue-50 text-blue-500",
     description: "Turn photo and script into talking video.",
+    href: "/photo-to-video",
   },
   {
     label: "Translate Video",
     icon: Languages,
     color: "bg-orange-50 text-orange-500",
     description: "Translate with original voice and lip sync.",
+    href: "/translate-video",
   },
   {
     label: "Change Video Audio",
     icon: Video,
     color: "bg-purple-50 text-purple-500",
     description: "Replace the audio track of your video.",
+    href: "/change-video-audio",
   },
 ];
 
@@ -54,9 +55,6 @@ export function ClientHome({
 }: {
   recentCreations: Creation[];
 }) {
-  const [photoModalOpen, setPhotoModalOpen] = useState(false);
-  const [translateModalOpen, setTranslateModalOpen] = useState(false);
-  const [changeVideoAudioOpen, setChangeVideoAudioOpen] = useState(false);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const [durations, setDurations] = useState<Record<string, number>>({});
@@ -121,20 +119,10 @@ export function ClientHome({
       <h2 className="mb-6 text-lg font-semibold">Create something new</h2>
       <div className="mb-12 flex flex-wrap gap-4">
         {features.map((feature) => (
-          <div
+          <Link
             key={feature.label}
+            href={feature.href}
             className="group relative flex min-w-80 cursor-pointer items-center gap-4 rounded-lg bg-white p-2 transition-all duration-300"
-            onClick={() => {
-              if (feature.label === "Photo to Video with Portrait Avatar") {
-                setPhotoModalOpen(true);
-              }
-              if (feature.label === "Translate Video") {
-                setTranslateModalOpen(true);
-              }
-              if (feature.label === "Change Video Audio") {
-                setChangeVideoAudioOpen(true);
-              }
-            }}
           >
             <div
               className={`flex items-center justify-center rounded-lg p-3 ${feature.color}`}
@@ -150,7 +138,7 @@ export function ClientHome({
               </div>
             </div>
             <span className="pointer-events-none absolute inset-0 rounded-lg border border-transparent opacity-0 shadow transition-all duration-300 group-hover:border-gray-200 group-hover:opacity-100 group-hover:shadow-md"></span>
-          </div>
+          </Link>
         ))}
       </div>
 
@@ -273,19 +261,6 @@ export function ClientHome({
           </div>
         </>
       )}
-
-      <PhotoToVideoModal
-        open={photoModalOpen}
-        onOpenChange={setPhotoModalOpen}
-      />
-      <VideoTranslationModal
-        open={translateModalOpen}
-        onOpenChange={setTranslateModalOpen}
-      />
-      <ChangeVideoAudioModal
-        open={changeVideoAudioOpen}
-        onOpenChange={setChangeVideoAudioOpen}
-      />
     </div>
   );
 }
