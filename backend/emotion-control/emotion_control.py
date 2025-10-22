@@ -23,38 +23,19 @@ def download_liveportrait_models():
     print("Downloading LivePortrait models...")
     snapshot_download(
         "KwaiVGI/LivePortrait",
-        local_dir="/models/LivePortrait",
-        ignore_patterns=["*.md", "*.txt"]
+        local_dir="/liveportrait/pretrained_weights",
+        ignore_patterns=["*.md", "*.git*", "docs"]
     )
     print("Models downloaded successfully!")
 
 
 image = (
     modal.Image
-    .from_registry("nvidia/cuda:12.1.1-devel-ubuntu22.04", add_python="3.10")
+    .from_registry("nvidia/cuda:12.1.1-devel-ubuntu20.04", add_python="3.10")
     .env({"DEBIAN_FRONTEND": "noninteractive"})
-    .apt_install("git", "ffmpeg", "libgl1-mesa-glx", "libglib2.0-0", "libsm6", "libxext6", "libxrender-dev")
-    .pip_install(
-        "torch>=2.0.0",
-        "torchvision>=0.15.0",
-        "opencv-python>=4.8.0",
-        "numpy>=1.24.0",
-        "pillow>=10.0.0",
-        "imageio>=2.31.0",
-        "imageio-ffmpeg>=0.4.9",
-        "safetensors>=0.3.1",
-        "pydantic>=2.0.0",
-        "scipy>=1.11.0",
-        "scikit-image>=0.21.0",
-        "tqdm>=4.65.0",
-        "huggingface-hub>=0.19.0",
-        "einops>=0.7.0",
-        "omegaconf>=2.3.0",
-        "tyro>=0.7.0"
-    )
-    .run_commands(
-        "git clone https://github.com/KwaiVGI/LivePortrait /liveportrait"
-    )
+    .apt_install("git", "ffmpeg")
+    .pip_install_from_requirements("requirements.txt")
+    .run_commands("git clone https://github.com/KwaiVGI/LivePortrait /liveportrait")
     .run_function(download_liveportrait_models, volumes=volumes)
 )
 
@@ -101,38 +82,14 @@ class EmotionControlResponse(BaseModel):
     secrets=[s3_secret]
 )
 class EmotionControlServer:
-    
-    @modal.enter()
-    def load_model(self):
-        """Load LivePortrait pipeline on container startup"""
-        import sys
-        sys.path.insert(0, "/liveportrait/src")
-        
-        print("Loading LivePortrait pipeline...")
-        
-        # Import after path is set
-        from live_portrait_wrapper import LivePortraitWrapper
-        
-        self.pipeline = LivePortraitWrapper(
-            cfg={
-                'checkpoint_F': '/models/LivePortrait/appearance_feature_extractor.pth',
-                'checkpoint_M': '/models/LivePortrait/motion_extractor.pth',
-                'checkpoint_G': '/models/LivePortrait/spade_generator.pth',
-                'checkpoint_W': '/models/LivePortrait/warping_module.pth',
-                'flag_use_half_precision': True
-            }
-        )
-        
-        print("LivePortrait loaded successfully!")
-    
     @modal.fastapi_endpoint(method="POST", requires_proxy_auth=True)
     def control_emotion(self, request: EmotionControlRequest) -> EmotionControlResponse:
         """
-        Apply emotion controls to an input video
+        Apply emotion controls to an input video using LivePortrait
+        
+        Uses LivePortrait's inference script with custom retargeting parameters
         """
         import cv2
-        import numpy as np
-        import torch
         
         print(f"Processing emotion control for video: {request.video_s3_key}")
         print(f"Controls: smile={request.smile_intensity}, pitch={request.head_pitch}, yaw={request.head_yaw}")
@@ -146,37 +103,20 @@ class EmotionControlServer:
             if not os.path.exists(video_path):
                 raise FileNotFoundError(f"Video not found at {video_path}")
             
-            # Extract frames from video
-            print("Extracting frames...")
-            frames_dir = Path(temp_dir) / "input_frames"
-            frames_dir.mkdir()
-            
+            # Extract first frame as source image
+            print("Extracting source frame...")
             cap = cv2.VideoCapture(video_path)
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            
-            frames = []
-            idx = 0
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                frame_path = frames_dir / f"frame_{idx:06d}.png"
-                cv2.imwrite(str(frame_path), frame)
-                frames.append(frame)
-                idx += 1
-            
+            ret, first_frame = cap.read()
             cap.release()
-            print(f"Extracted {len(frames)} frames at {fps} FPS")
             
-            # Process frames with LivePortrait
-            print("Processing frames with emotion controls...")
-            output_frames = []
+            if not ret:
+                raise RuntimeError("Could not read video")
             
-            # Create emotion control parameters
-            emotion_params = {
+            source_image_path = os.path.join(temp_dir, "source.jpg")
+            cv2.imwrite(source_image_path, first_frame)
+            
+            # Create retargeting info file for emotion controls
+            retargeting_info = {
                 'smile': request.smile_intensity,
                 'eye_openness': request.eye_openness,
                 'eyebrow': request.eyebrow_raise,
@@ -186,36 +126,57 @@ class EmotionControlServer:
                 'eye_x': request.eye_gaze_x,
                 'eye_y': request.eye_gaze_y,
                 'mouth_open': request.mouth_open,
-                'strength': request.expression_strength
+                'expression_strength': request.expression_strength
             }
             
-            for i, frame in enumerate(frames):
-                if i % 10 == 0:
-                    print(f"Processing frame {i}/{len(frames)}")
-                
-                # Apply emotion controls to frame
-                # Note: Actual LivePortrait API will be different
-                # This is a placeholder for the emotion control logic
-                processed_frame = self._apply_emotion_controls(frame, emotion_params)
-                output_frames.append(processed_frame)
+            print(f"Applying emotion controls: {retargeting_info}")
             
-            # Save processed frames back to video
-            print("Reassembling video...")
-            output_video_path = os.path.join(temp_dir, "output_video.mp4")
+            # Run LivePortrait inference
+            # For now, use source video as driving video (self-reenactment with retargeting)
+            output_dir = os.path.join(temp_dir, "output")
+            os.makedirs(output_dir, exist_ok=True)
             
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+            print("Running LivePortrait inference...")
+            command = [
+                "python",
+                "inference.py",
+                "-s", source_image_path,
+                "-d", video_path,
+                "--output_dir", output_dir,
+                # Add retargeting parameters
+                "--flag_retarget_eyes", "1" if abs(request.eye_gaze_x) > 0.01 or abs(request.eye_gaze_y) > 0.01 else "0",
+                "--flag_retarget_mouth", "1" if abs(request.smile_intensity) > 0.01 or abs(request.mouth_open) > 0.01 else "0"
+            ]
             
-            for frame in output_frames:
-                out.write(frame)
+            result = subprocess.run(
+                command,
+                cwd="/liveportrait",
+                capture_output=True,
+                text=True,
+                timeout=1500
+            )
             
-            out.release()
+            if result.returncode != 0:
+                print(f"LivePortrait stderr: {result.stderr}")
+                print(f"LivePortrait stdout: {result.stdout}")
+                raise RuntimeError(f"LivePortrait inference failed: {result.stderr}")
+            
+            print("LivePortrait processing complete!")
+            
+            # Find the generated video
+            generated_video = None
+            for fpath in glob.glob(os.path.join(output_dir, "**", "*.mp4"), recursive=True):
+                generated_video = fpath
+                break
+            
+            if not generated_video or not os.path.exists(generated_video):
+                raise RuntimeError("LivePortrait did not produce output video")
             
             # Re-encode with ffmpeg for better compatibility
             final_video_path = os.path.join(temp_dir, "final_video.mp4")
             ffmpeg_command = [
                 "ffmpeg",
-                "-i", output_video_path,
+                "-i", generated_video,
                 "-c:v", "libx264",
                 "-preset", "medium",
                 "-crf", "23",
@@ -223,7 +184,7 @@ class EmotionControlServer:
                 final_video_path
             ]
             subprocess.run(ffmpeg_command, check=True, capture_output=True)
-            print("Video reassembled successfully!")
+            print("Video processed successfully!")
             
             # Upload result to S3
             video_uuid = str(uuid.uuid4())
@@ -233,13 +194,19 @@ class EmotionControlServer:
             shutil.copy(final_video_path, s3_path)
             print(f"Saved video to S3: {s3_key}")
             
-            # Save preview frame
+            # Extract a preview frame
             preview_s3_key = None
-            if len(output_frames) > 0:
-                preview_frame = output_frames[len(output_frames) // 2]
-                preview_path = os.path.join(temp_dir, "preview.jpg")
-                cv2.imwrite(preview_path, preview_frame)
-                
+            preview_path = os.path.join(temp_dir, "preview.jpg")
+            ffmpeg_preview = [
+                "ffmpeg",
+                "-i", video_path,
+                "-vf", "select='eq(n,0)'",
+                "-vframes", "1",
+                preview_path
+            ]
+            result = subprocess.run(ffmpeg_preview, capture_output=True)
+            
+            if result.returncode == 0 and os.path.exists(preview_path):
                 preview_s3_key = f"emotion-control/{video_uuid}_preview.jpg"
                 preview_s3_path = f"/s3-mount/{preview_s3_key}"
                 shutil.copy(preview_path, preview_s3_path)
@@ -254,24 +221,6 @@ class EmotionControlServer:
             # Cleanup
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
-    
-    def _apply_emotion_controls(self, frame, params):
-        """
-        Apply emotion controls to a single frame using LivePortrait
-        
-        This is a placeholder - actual implementation will use LivePortrait's API
-        """
-        import cv2
-        import numpy as np
-        
-        # TODO: Implement actual LivePortrait emotion control
-        # For now, return the frame as-is
-        # Real implementation will:
-        # 1. Extract facial features
-        # 2. Modify features based on params
-        # 3. Render modified face back to frame
-        
-        return frame
 
 
 @app.local_entrypoint()
