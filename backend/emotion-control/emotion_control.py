@@ -34,7 +34,21 @@ image = (
     .from_registry("nvidia/cuda:12.1.1-devel-ubuntu22.04", add_python="3.10")
     .env({"DEBIAN_FRONTEND": "noninteractive"})
     .apt_install("git", "ffmpeg", "libgl1-mesa-glx", "libglib2.0-0", "libsm6", "libxext6", "libxrender-dev")
-    .pip_install_from_requirements("emotion-control/requirements.txt")
+    .pip_install(
+        "torch>=2.0.0",
+        "torchvision>=0.15.0",
+        "opencv-python>=4.8.0",
+        "numpy>=1.24.0",
+        "pillow>=10.0.0",
+        "imageio>=2.31.0",
+        "imageio-ffmpeg>=0.4.9",
+        "safetensors>=0.3.1",
+        "pydantic>=2.0.0",
+        "scipy>=1.11.0",
+        "scikit-image>=0.21.0",
+        "tqdm>=4.65.0",
+        "huggingface-hub>=0.19.0"
+    )
     .run_commands(
         "git clone https://github.com/KwaiVGI/LivePortrait /liveportrait",
         "cd /liveportrait && pip install -e ."
