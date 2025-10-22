@@ -410,3 +410,129 @@ export const changeVideoAudio = inngest.createFunction(
     }
   },
 );
+
+export const emotionControl = inngest.createFunction(
+  {
+    id: "emotion-control",
+    concurrency: {
+      limit: 5,
+      key: "event.data.userId",
+    },
+    onFailure: async ({ event, error }) => {
+      await db.emotionControlGeneration.update({
+        where: {
+          id: (event?.data?.event.data as { emotionControlId: string })
+            .emotionControlId,
+        },
+        data: {
+          status: "failed",
+        },
+      });
+    },
+  },
+  { event: "emotion-control-event" },
+  async ({ event, step }) => {
+    const { emotionControlId } = event.data as {
+      emotionControlId: string;
+      userId: string;
+    };
+
+    const generation = await step.run("get-generation-record", async () => {
+      return await db.emotionControlGeneration.findUniqueOrThrow({
+        where: {
+          id: emotionControlId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              credits: true,
+            },
+          },
+        },
+      });
+    });
+
+    if (generation.user.credits > 0) {
+      await step.run("set-status-processing", async () => {
+        return await db.emotionControlGeneration.update({
+          where: { id: generation.id },
+          data: {
+            status: "processing",
+          },
+        });
+      });
+
+      const emotionResponse = await step.fetch(env.EMOTION_CONTROL_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Modal-Key": env.MODAL_KEY,
+          "Modal-Secret": env.MODAL_SECRET,
+        },
+        body: JSON.stringify({
+          video_s3_key: generation.sourceVideoS3Key,
+          smile_intensity: generation.smileIntensity,
+          eye_openness: generation.eyeOpenness,
+          eyebrow_raise: generation.eyebrowRaise,
+          head_pitch: generation.headPitch,
+          head_yaw: generation.headYaw,
+          head_roll: generation.headRoll,
+          eye_gaze_x: generation.eyeGazeX,
+          eye_gaze_y: generation.eyeGazeY,
+          mouth_open: generation.mouthOpen,
+          expression_strength: generation.expressionStrength,
+        }),
+      });
+
+      if (!emotionResponse.ok) {
+        const errorText = await emotionResponse.text();
+        throw new Error(
+          `Emotion Control API failed: ${emotionResponse.status} ${emotionResponse.statusText}. Response: ${errorText}`,
+        );
+      }
+
+      const contentType = emotionResponse.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const responseText = await emotionResponse.text();
+        throw new Error(
+          `Emotion Control API returned non-JSON response. Content-Type: ${contentType}. Response: ${responseText}`,
+        );
+      }
+
+      const data = (await emotionResponse.json()) as {
+        video_s3_key: string;
+        preview_frame_s3_key?: string;
+      };
+
+      await step.run("update-db-with-result", async () => {
+        return await db.emotionControlGeneration.update({
+          where: { id: generation.id },
+          data: {
+            videoS3Key: data.video_s3_key,
+            previewFrameS3Key: data.preview_frame_s3_key,
+            status: "completed",
+          },
+        });
+      });
+
+      await step.run("deduct-credits", async () => {
+        return await db.user.update({
+          where: {
+            id: generation.user.id,
+          },
+          data: { credits: { decrement: 1 } },
+        });
+      });
+    } else {
+      await step.run("set-status-no-credits", async () => {
+        return await db.emotionControlGeneration.update({
+          where: { id: generation.id },
+          data: {
+            status: "no credits",
+          },
+        });
+      });
+    }
+  },
+);

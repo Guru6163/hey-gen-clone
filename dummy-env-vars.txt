@@ -21,6 +21,7 @@ S3_BUCKET_NAME="dummy-s3-bucket-name"
 TEXT_TO_SPEECH_ENDPOINT="https://dummy-tts-api.example.com"
 PHOTO_TO_VIDEO_ENDPOINT="https://dummy-ptv-api.example.com"
 FILE_TO_S3_ENDPOINT="https://dummy-file-s3-api.example.com"
+EMOTION_CONTROL_ENDPOINT="https://dummy-emotion-control-api.example.com"
 
 # Polar API
 POLAR_ACCESS_TOKEN="dummy_polar_access_token_12345"

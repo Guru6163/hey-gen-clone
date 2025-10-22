@@ -20,7 +20,8 @@ export async function getPresignedUrl(
     | "ttsVoiceClone"
     | "videoTranslationSource"
     | "cvaVideo"
-    | "cvaAudio",
+    | "cvaAudio"
+    | "emotionControlVideo",
 ) {
   let folder: string | null = null;
 
@@ -28,6 +29,7 @@ export async function getPresignedUrl(
   if (purpose === "ttsVoiceClone") folder = "tts";
   if (purpose === "videoTranslationSource") folder = "vt";
   if (purpose === "cvaVideo" || purpose === "cvaAudio") folder = "cva";
+  if (purpose === "emotionControlVideo") folder = "emotion-control";
 
   if (folder === null) {
     throw new Error("Invalid purpose for presigned upload URL");
@@ -167,6 +169,59 @@ export async function changeVideoAudio(request: ChangeVideoAudioRequest) {
     data: {
       changeVideoAudioId: changeVideoAudio.id,
       userId: changeVideoAudio.userId,
+    },
+  });
+
+  revalidatePath("/");
+}
+
+export interface EmotionControlRequest {
+  sourceVideoS3Key: string;
+  videoName: string;
+  smileIntensity?: number;
+  eyeOpenness?: number;
+  eyebrowRaise?: number;
+  headPitch?: number;
+  headYaw?: number;
+  headRoll?: number;
+  eyeGazeX?: number;
+  eyeGazeY?: number;
+  mouthOpen?: number;
+  expressionStrength?: number;
+}
+
+export async function controlEmotion(request: EmotionControlRequest) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) redirect("/auth/sign-in");
+
+  const emotionControl = await db.emotionControlGeneration.create({
+    data: {
+      name: request.videoName,
+      sourceVideoS3Key: request.sourceVideoS3Key,
+      smileIntensity: request.smileIntensity ?? 0.0,
+      eyeOpenness: request.eyeOpenness ?? 0.0,
+      eyebrowRaise: request.eyebrowRaise ?? 0.0,
+      headPitch: request.headPitch ?? 0.0,
+      headYaw: request.headYaw ?? 0.0,
+      headRoll: request.headRoll ?? 0.0,
+      eyeGazeX: request.eyeGazeX ?? 0.0,
+      eyeGazeY: request.eyeGazeY ?? 0.0,
+      mouthOpen: request.mouthOpen ?? 0.0,
+      expressionStrength: request.expressionStrength ?? 1.0,
+      userId: session.user.id,
+      status: "queued",
+    },
+  });
+
+  // Queue the job
+  await inngest.send({
+    name: "emotion-control-event",
+    data: {
+      emotionControlId: emotionControl.id,
+      userId: emotionControl.userId,
     },
   });
 

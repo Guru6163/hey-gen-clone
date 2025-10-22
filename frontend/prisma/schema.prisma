@@ -24,6 +24,7 @@ model User {
   photoToVideoGenerations PhotoToVideoGeneration[]
   videoTranslationGenerations VideoTranslationGeneration[]
   changeVideoAudioGenerations ChangeVideoAudioGeneration[]
+  emotionControlGenerations EmotionControlGeneration[]
 
   @@unique([email])
   @@map("user")
@@ -69,6 +70,31 @@ model ChangeVideoAudioGeneration {
   videoS3Key String?
   status String @default("queued")
   falJobId String?
+  createdAt DateTime @default(now())
+  userId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmotionControlGeneration {
+  id String @id @default(cuid())
+  name String
+  sourceVideoS3Key String?
+  videoS3Key String?
+  previewFrameS3Key String?
+  status String @default("queued")
+  
+  // Emotion control parameters
+  smileIntensity Float? @default(0.0)
+  eyeOpenness Float? @default(0.0)
+  eyebrowRaise Float? @default(0.0)
+  headPitch Float? @default(0.0)
+  headYaw Float? @default(0.0)
+  headRoll Float? @default(0.0)
+  eyeGazeX Float? @default(0.0)
+  eyeGazeY Float? @default(0.0)
+  mouthOpen Float? @default(0.0)
+  expressionStrength Float? @default(1.0)
+  
   createdAt DateTime @default(now())
   userId String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

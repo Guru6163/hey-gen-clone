@@ -20,6 +20,7 @@ export const env = createEnv({
     TEXT_TO_SPEECH_ENDPOINT: z.string().url(),
     PHOTO_TO_VIDEO_ENDPOINT: z.string().url(),
     FILE_TO_S3_ENDPOINT: z.string().url(),
+    EMOTION_CONTROL_ENDPOINT: z.string().url(),
     POLAR_ACCESS_TOKEN: z.string(),
     POLAR_WEBHOOK_SECRET: z.string(),
     FAL_KEY: z.string(),
@@ -53,6 +54,7 @@ export const env = createEnv({
     TEXT_TO_SPEECH_ENDPOINT: process.env.TEXT_TO_SPEECH_ENDPOINT,
     PHOTO_TO_VIDEO_ENDPOINT: process.env.PHOTO_TO_VIDEO_ENDPOINT,
     FILE_TO_S3_ENDPOINT: process.env.FILE_TO_S3_ENDPOINT,
+    EMOTION_CONTROL_ENDPOINT: process.env.EMOTION_CONTROL_ENDPOINT,
     POLAR_ACCESS_TOKEN: process.env.POLAR_ACCESS_TOKEN,
     NEXT_PUBLIC_SMALL_CREDIT_PACK_ID:
       process.env.NEXT_PUBLIC_SMALL_CREDIT_PACK_ID,
